@@ -71,16 +71,20 @@ func (s *Server) Register(svcs []Service) {
 }
 
 func (s *Server) Run() {
+	s.RunWithContext(context.Background())
+}
+
+func (s *Server) RunWithContext(c context.Context) {
 	apex.HandleFunc(func(eventMsg json.RawMessage, ctx *apex.Context) (interface{}, error) {
 		var event Event
 		if err := json.Unmarshal(eventMsg, &event); err != nil {
 			return nil, fmt.Errorf("invalid event")
 		}
-		return s.processEvent(&event, ctx)
+		return s.processEvent(c, &event, ctx)
 	})
 }
 
-func (s *Server) processEvent(event *Event, ctx *apex.Context) (interface{}, error) {
+func (s *Server) processEvent(c context.Context, event *Event, ctx *apex.Context) (interface{}, error) {
 	if event.Package == nil {
 		var p string
 		event.Package = &p
@@ -98,10 +102,10 @@ func (s *Server) processEvent(event *Event, ctx *apex.Context) (interface{}, err
 		data = bytes.NewReader(*event.Data)
 	}
 	methodID := NewMethodID(*event.Package, *event.Service, *event.Method)
-	return s.callGRPCMethod(methodID, data)
+	return s.callGRPCMethod(c, methodID, data)
 }
 
-func (s *Server) callGRPCMethod(id MethodID, data io.Reader) (*proto.Message, error) {
+func (s *Server) callGRPCMethod(c context.Context, id MethodID, data io.Reader) (*proto.Message, error) {
 	decode := func(v interface{}) error {
 		if err := jsonpb.Unmarshal(data, v.(proto.Message)); err != nil {
 			return fmt.Errorf("invalid input data for method (%s)", id)
@@ -112,7 +116,7 @@ func (s *Server) callGRPCMethod(id MethodID, data io.Reader) (*proto.Message, er
 	if !ok {
 		return nil, fmt.Errorf("method handler not found - %s", id)
 	}
-	reply, err := h.methodDesc.Handler(h.server, context.Background(), decode)
+	reply, err := h.methodDesc.Handler(h.server, c, decode)
 	if err != nil {
 		return nil, err
 	}
