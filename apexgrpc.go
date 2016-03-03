@@ -84,6 +84,21 @@ func (s *Server) RunWithContext(c context.Context) {
 	})
 }
 
+func (s *Server) Invoke(c context.Context, pkg string, svc string, mtd string, data interface{}) (interface{}, error) {
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	dataMsg := json.RawMessage(dataBytes)
+	event := Event{
+		Package: &pkg,
+		Service: &svc,
+		Method:  &mtd,
+		Data:    &dataMsg,
+	}
+	return s.processEvent(c, &event, nil)
+}
+
 func (s *Server) processEvent(c context.Context, event *Event, ctx *apex.Context) (interface{}, error) {
 	if event.Package == nil {
 		var p string
