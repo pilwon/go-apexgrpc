@@ -99,6 +99,13 @@ func (s *Server) Invoke(c context.Context, pkg string, svc string, mtd string, d
 	return s.processEvent(c, &event, nil)
 }
 
+func (s *Server) InvokeEvent(c context.Context, event *Event) (interface{}, error) {
+	if event == nil {
+		return nil, fmt.Errorf("missing event")
+	}
+	return s.processEvent(c, event, nil)
+}
+
 func (s *Server) processEvent(c context.Context, event *Event, ctx *apex.Context) (interface{}, error) {
 	if event.Package == nil {
 		var p string
